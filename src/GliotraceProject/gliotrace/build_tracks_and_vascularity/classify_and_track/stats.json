@@ -1,0 +1,15 @@
+{
+  "computed_from": "out_dataset\\train",
+  "n_images_used": 5760,
+  "mean_rgb_0_1": [
+    0.060315167249221785,
+    0.06624162472174644,
+    0.0
+  ],
+  "std_rgb_0_1": [
+    0.14522780409662495,
+    0.15758291302068153,
+    1e-06
+  ],
+  "note": "Apply: (x - mean) / std in training; computed from TRAIN ONLY (no augmentation on disk)."
+}
