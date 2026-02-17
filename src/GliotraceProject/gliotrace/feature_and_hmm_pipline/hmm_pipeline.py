@@ -10,6 +10,37 @@ from sklearn.preprocessing import StandardScaler
 import numpy as np
 import pandas as pd
 
+import numpy as np
+import pandas as pd
+
+KEYS = ["exp", "roi", "cellID"]   # adjust if needed
+TIME_COL = "time"
+
+
+def add_universal_time_to_gammas(gamma_df: pd.DataFrame, data_feat: pd.DataFrame,
+                                 keys=KEYS, time_col=TIME_COL,
+                                 t_col="t"):
+    """
+    gamma_df must contain keys + t_col, where t runs 0..T_i-1 per key.
+    Adds gamma_df[time_col] = gamma_df[t_col] + offset,
+    where offset = min(data_feat[time_col]) for that key.
+    """
+
+    # offsets per (exp, roi, cellID)
+    offsets = (
+        data_feat.groupby(list(keys), as_index=False)[time_col]
+        .min()
+        .rename(columns={time_col: "offset"})
+    )
+
+    # bring offsets onto gammas
+    out = gamma_df.merge(offsets, on=list(
+        keys), how="left", validate="many_to_one")
+
+    out[time_col] = out[t_col].astype(int) + out["offset"].astype(int)
+    out = out.drop(columns=["offset"])
+    return out
+
 
 def _init_sticky_A(K, stay=0.95):
     "Intial A, can be changed"
@@ -60,6 +91,8 @@ def hmm_pipeline(data, fcols, hmm_param):
     # NOTE: Can be changed
     print("--- Intialize transitions ---")
     A = _init_sticky_A(n_states, stay=0.95)
+    # smoothed_data = smooth_tracks(data_feat);
+    # A = count_label_transitions(smoothed_data)
 
     # ----------- Scale and format -----------
     print("--- Final Preperations for GLM-HMM ---")
@@ -102,6 +135,10 @@ def hmm_pipeline(data, fcols, hmm_param):
         state_names=softmax_columns,
         patience=10
     )
+
+    # Align gamma and data_feat
+    # example gamma_df columns: exp, roi, cellID, t, gamma_0, gamma_1, ...
+    gammas = add_universal_time_to_gammas(gammas, data_feat)
 
     print("--- Computing Viterbi Paths ---")
 

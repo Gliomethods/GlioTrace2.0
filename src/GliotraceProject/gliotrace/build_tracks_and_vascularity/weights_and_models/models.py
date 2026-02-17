@@ -3,7 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class MatlabNetGaussianReg(nn.Module):
+class StateNet(nn.Module):
+    """
+    6-state network
+    @ Author: André Lasses Armatowski, Madeleine Skeppås
+    """
 
     def __init__(self, num_classes: int, emb_dim: int = 256):
         super().__init__()
@@ -57,7 +61,7 @@ class MatlabNetGaussianReg(nn.Module):
         x = self.fc1(x)
         x = F.relu(x)
 
-        emb = self.fc2(x)                 # <- no activation
+        emb = self.fc2(x)
         logits = self.classifier(emb)
 
         if return_embedding:
@@ -65,7 +69,12 @@ class MatlabNetGaussianReg(nn.Module):
         return logits
 
 
-class MatlabNet2Class(nn.Module):
+class TMENet(nn.Module):
+    """
+    TME network
+    @ Author: André Lasses Armatowski, Madeleine Skeppås
+    """
+
     def __init__(self):
         super().__init__()
 
@@ -168,7 +177,11 @@ class MatlabNet2Class(nn.Module):
         return x
 
 
-class MatlabSegNet(nn.Module):
+class VascNet(nn.Module):
+    """
+    Vascular Segementation Network
+    @ Author: André Lasses Armatowski, Madeleine Skeppås
+    """
 
     def __init__(self):
         super().__init__()

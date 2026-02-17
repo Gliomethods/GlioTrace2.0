@@ -1,13 +1,15 @@
 from __future__ import annotations
 import pandas as pd
-from typing import Optional, Sequence
+from typing import Optional
 import re
 from pathlib import Path
 
-from typing import Optional
-
 
 def extract_id(path_like) -> int:
+    """
+    Extract experiment id from file name
+    @ Author: André Lasses Armatowski, Madeleine Skeppås
+    """
     s = str(path_like)
     m = re.search(r"exp_(\d+)_", s)
     if not m:
@@ -17,6 +19,10 @@ def extract_id(path_like) -> int:
 
 
 def extract_roi_num(path_like) -> int:
+    """
+    Extract roi id from file name
+    @ Author: André Lasses Armatowski, Madeleine Skeppås
+    """
     s = str(path_like)
     m = re.search(r"roi_(\d+)", s)
     if not m:
@@ -33,6 +39,38 @@ def build_stack_table_flex(
     patient_id: Optional[list[str]],
     sets_by_patient: Optional[dict[str, list[int]]],
 ) -> pd.DataFrame:
+    """
+    Build a stack table from stack file paths and metadata, with optional filtering by patient,
+    per-patient set selection, and control/treatment perturbation (optionally dose-specific).
+
+    Parameters
+    ----------
+    stackfile : list[Path]
+        List of stack file paths.
+    metadata : pd.DataFrame
+        Metadata table keyed by `experiment_id` and containing required columns such as `delta_t`.
+        If `patient_id` or `sets_by_patient` are used, metadata must contain `patient_id` (and `set`).
+        If control/treatment filtering is used, metadata must contain `perturbation` (and `dose` if dose filtering).
+    treatment : Optional[tuple[object, object]]
+        Optional (treatment_name, treatment_dose). If dose is None, selects all rows matching treatment_name.
+        If dose is not None, filters additionally by metadata column `dose`.
+    control : str
+        Control perturbation value, or "all" to disable perturbation filtering (treatment must then be None).
+    patient_id : Optional[list[str]]
+        Optional list of patient identifiers to include.
+    sets_by_patient : Optional[dict[str, list[int]]]
+        Optional mapping from patient_id -> list of allowed set indices to include for that patient.
+
+    Returns
+    -------
+    pd.DataFrame
+        Filtered stack table with columns renamed to include `exp` and `roi`, plus:
+          - `is_treatment` boolean flag
+          - `treatment_name` and `treatment_dose` when treatment is provided
+        The returned table is deduplicated and index-reset.
+
+    @ Author: André Lasses Armatowski, Madeleine Skeppås
+    """
 
     # ------------------------------
     # 0) Metadata: selection checks

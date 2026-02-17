@@ -6,10 +6,7 @@ def stackscore_naive_sad(gbm):
     Input: gbm: stack images (single channel) (H, W, T)
     Return: sad: a scalar
 
-    @OG-Authors: Sven Nelander
-    @date: 14082024
-
-    @Python-Authors: André
+    @ Author: André Lasses Armatowski, Sven Nelander
     """
 
     # Work on copy since we are modifying in place
@@ -32,10 +29,7 @@ def stackscore_naive_admad(gbm):
     Input: gbm: stack (single channel) (H, W, T)
     Output: admad
 
-    @OG-Authors: Sven Nelander
-    @date: 14082024
-
-    @Python-Authors: André
+    @ Author: André Lasses Armatowski, Sven Nelander
     """
 
     # Absolute differences between neighbouring slices
@@ -64,10 +58,7 @@ def stackscore_naive_growth_rate(gbm, dt):
 
     Output: growth_rate: a scalar describing increase in gbm.
 
-    @OG-Authors: Sven Nelander
-    @date: 14082024
-
-    @Python-Authors: André
+    @ Author: André Lasses Armatowski, Sven Nelander
     """
     y = np.mean(gbm, axis=(0, 1))
 
@@ -85,6 +76,8 @@ def compute_gbm_stats(gbm, dt):
            between frames
 
     Output: Summary statiscs of change in gbm
+
+    @ Author: André Lasses Armatowski
     """
 
     # Convert to float to avoid doing modular arithmetic

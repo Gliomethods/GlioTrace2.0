@@ -17,6 +17,8 @@ def bwskel_min_branch_length(mask, min_length=15):
 
     1. Skeletonize the mask
     2. Remove skeleton components shorter than min_length
+
+    @ Author: André Lasses Armatowski
     """
     # Step 1: skeletonize
     skel = skeletonize(mask > 0)
@@ -34,6 +36,31 @@ def bwskel_min_branch_length(mask, min_length=15):
 
 
 def segment_quantify_vasculature(Vstack, net):
+    """
+    Segment and quantify vasculature per frame in a 3D image stack using a PyTorch U-Net.
+
+    Parameters
+    ----------
+    Vstack : np.ndarray
+        Grayscale image stack of shape (H, W, T), where T is the number of frames.
+        Intensities are treated in the 0–255 range after uint8 conversion.
+    net : torch.nn.Module
+        Trained segmentation network that maps an input tensor [1, 1, H, W] to logits
+        with (at least) 2 classes: class 0 = background, class 1 = vessel.
+
+    Returns
+    -------
+    vasc_length_stack : list[int]
+        Per-frame vasculature length proxy, computed as the number of skeleton pixels
+        after morphological closing and skeletonization (with a minimum branch length filter).
+    segstack : np.ndarray
+        RGB overlay stack of shape (H, W, 3, T) as uint8. The background is a contrast-shifted
+        version of the input frame and the (dilated) vasculature skeleton is overlaid in blue.
+    binarystack : np.ndarray
+        Boolean stack of shape (H, W, T) indicating the (dilated) skeleton mask per frame.
+
+    @ Author: André Lasses Armatowski, Madeleine Skeppås 
+    """
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

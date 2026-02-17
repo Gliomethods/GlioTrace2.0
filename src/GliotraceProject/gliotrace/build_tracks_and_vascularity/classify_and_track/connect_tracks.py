@@ -27,10 +27,7 @@ def connect_tracklets(traX, traY, phenotypes, max_radius=15.0):
     phenotypes : same type as input
         Adjusted phenotype matrices reflecting the merged trajectories.
 
-    OG-Authors: Madeleine Skeppås, Sven Nelander
-    date: 14082024
-
-    Python-Authors: André
+    @ Author: André Lasses Armatowski, Madeleine Skeppås, Sven Nelander
     """
 
     traX = traX.copy()

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass(frozen=True)
@@ -15,4 +14,3 @@ class ValidatedInit:
     patient_id: list
     sets_by_patient: dict[str, list[int]]
     treatment: list[str]
-    verbose: bool

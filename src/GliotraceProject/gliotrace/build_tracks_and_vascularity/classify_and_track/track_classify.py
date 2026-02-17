@@ -59,6 +59,8 @@ def track_classify(
     6. Assemble per-track properties and embeddings into DataFrames
        (`build_track_dataframes`).
 
+    @ Author: André Lasses Armatowski, Madeleine Skeppås, Sven Nelander
+
     """
 
     sigmah = 16.0

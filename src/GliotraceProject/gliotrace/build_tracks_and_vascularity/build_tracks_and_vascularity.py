@@ -22,6 +22,41 @@ def build_tracks_and_vascularity(
     i,
     dt
 ):
+    """
+        Build cell tracks with per-frame classification features and vasculature-derived distances.
+
+        Parameters
+        ----------
+        gbm : np.ndarray
+            GBM (cell) image stack used for detection/tracking/classification 
+        vasc : np.ndarray
+            Vasculature image stack used for vessel segmentation and distance-to-vessel computation
+        gbm_net : torch.nn.Module
+            Trained "state" network used inside `track_classify` to assign cell state probabilities/labels.
+        tme_net : torch.nn.Module
+            Trained TME (binary) network used inside `track_classify` to compute TME-related outputs.
+        seg_net : torch.nn.Module
+            Trained segmentation network used to segment vasculature from `vasc`.
+        blocksize : int
+            Spatial block size / tiling parameter forwarded to `track_classify` (pipeline-specific).
+        detection_sensitivity : float
+            Detection sensitivity parameter forwarded to `track_classify`.
+        i : int
+            Index/identifier forwarded to `track_classify`
+        dt : float
+            Time step between frames, forwarded to `compute_gbm_stats` for temporal feature computation.
+
+        Returns
+        -------
+        tracks_with_props : pandas.DataFrame or None
+            Table of tracked objects augmented with:
+            - `sum_green`: per-frame "sum green" statistic mapped from `compute_gbm_stats`
+            - `adMAD`: per-frame adMAD statistic mapped from `compute_gbm_stats`
+            - vascular distance features added by `add_vascular_distance`
+            Returns None if tracking/classification produced no tracks.
+
+    @ Author: André Lasses Armatowski, Madeleine Skeppås
+    """
     # ------------------------------------------
     # Tracking and classifying
     # ------------------------------------------

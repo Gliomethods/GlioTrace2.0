@@ -1,12 +1,11 @@
 import pandas as pd
 import numpy as np
 from scipy.spatial import distance_matrix
-from scipy.spatial import cKDTree
 
 
 def w_dir_roi_t(data, power=2):
     """
-    Author: Linnea Hallin
+    @ Author: Linnea Hallin
     """
     # calculates the weighted sin and cos of cells in a roi
     # (excluding the cells' own directions)
@@ -42,7 +41,7 @@ def w_dir_roi_t(data, power=2):
 
 def weighted_direction(data, power=2):
     """
-    Author: Linnea Hallin
+    @ Author: Linnea Hallin
     """
     dir_sorted = (
         data.groupby(["roi", "time"], sort=False)
@@ -53,47 +52,10 @@ def weighted_direction(data, power=2):
     return dir_orig_order
 
 
-def get_vasc_coords(vasc_mask):
+def feature_construction(data):
     """
-    Author: Linnea Hallin
+    @ Author: Linnea Hallin, André Lasses Armatowski
     """
-    # vasc_mask: boolean mask with True in vascularity
-    # returns: coordinates of the True values (1-indexed)
-    ys, xs = np.nonzero(vasc_mask)
-    vasc_coords = np.column_stack((xs, ys)).astype(float) + np.ones(
-        (len(xs), 2)
-    )  # adding 1 since trax and tray are 1-indexed
-    return vasc_coords
-
-
-def vasc_dist(data_roi, vasc_mask=None, vasc_coords=None):
-    """
-    Author: Linnea Hallin
-    """
-    # data_roi: feat data for one roi
-    # vasc_coords: coordinates (1-indexed) of the vascularity
-    # returns: for each cell and time point, the distance to the nearest vascularity
-    if vasc_coords is None:
-        vasc_coords = get_vasc_coords(vasc_mask)
-    tree = cKDTree(vasc_coords)  # nice structure for calculating distances
-    dists, _ = tree.query(data_roi[["trax", "tray"]], k=1)
-    return dists
-
-
-def vasc_dist_pipeline(data_roi, vasc_sum, p=0.2):
-    """
-    Author: Linnea Hallin
-    """
-    th = p * np.max(data_roi["time"])
-    vasc_mask = vasc_sum >= th
-    return vasc_dist(data_roi, vasc_mask)
-
-
-def feature_construction(data, vasc_masks=None, p=0.2):
-    """
-    Author: Linnea Hallin, André Lasses Armatowski
-    """
-    # assumes data is sorted by roi and cellID (todo: actually sort the data?)
 
     # Already in data:
     # sumgreen per ROI and time
@@ -161,14 +123,6 @@ def feature_construction(data, vasc_masks=None, p=0.2):
     ].diff()
     data["roi_speed_change"] = data.groupby(["roi", "cellID"])[
         "roi_speed"].diff()
-
-    if vasc_masks is not None:
-        dists = np.zeros(data.shape[0])
-        for roi in data["roi"].unique():
-            idx = data["roi"] == roi
-            vasc_sum = np.sum(vasc_masks[roi], axis=2)
-            dists[idx] = vasc_dist_pipeline(data[idx], vasc_sum, p=p)
-        data["vascular_distance"] = dists
 
     # --- Treatment interaction terms (mixture / varying-effect style) ---
     treat_ind = data["is_treatment"].astype(int)

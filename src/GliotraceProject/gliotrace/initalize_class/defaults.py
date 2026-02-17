@@ -1,6 +1,5 @@
 DEFAULT_HMM = {
     "em_iter": 1000,
-    "penalty": 0.01,
     "glm_iter": 500,
     "eps": 1e-6,
 }

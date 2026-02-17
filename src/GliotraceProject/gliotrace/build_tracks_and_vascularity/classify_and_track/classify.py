@@ -38,6 +38,8 @@ def classify_tumor_cells(
         - frame_index
         - cell_index
         - emb_0 .. emb_255 (256-dim embedding)
+
+    @ Author: André Lasses Armatowski, Madeleine Skeppås
     """
 
     SCRIPT_DIR = Path(__file__).resolve().parent

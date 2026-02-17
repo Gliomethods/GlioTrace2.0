@@ -32,15 +32,14 @@ class GlioTrace:
         self,
         stackfile,
         metadata,
-        detection_sensitivity: float = 0.0,
+        detection_sensitivity: float = 0.2,
         channel_roles: dict[str, str] | None = None,
         fcols: list[str] | None = None,
         hmm_param: dict[str, int | float] = None,
         control: str = "all",
         patient_id: Optional[list[str]] = None,
         sets_by_patient: Optional[dict[str, list[str]]] = None,
-        treatment: list[str] = None,
-        verbose: bool = False,
+        treatment: list[str] = None
     ):
         v = validate_init(
             stackfile=stackfile,
@@ -53,10 +52,7 @@ class GlioTrace:
             patient_id=patient_id,
             sets_by_patient=sets_by_patient,
             treatment=treatment,
-            verbose=verbose,
         )
-
-        self.control = control
 
         # Build stacktable containing all informaiton about the run data
         self._subtable = build_stack_table_flex(
@@ -81,7 +77,7 @@ class GlioTrace:
         self._hmm = False
 
         # Keep track of output paths
-        self._generate_video_visualizations = []
+        self._video_paths = []
 
         # Empty track data
         self._track_data = None
@@ -120,6 +116,7 @@ class GlioTrace:
         # Update the detection sensitivity:
         if detection_sensitivity is not None:
             ds = validate_detection_sensitivity(detection_sensitivity)
+            self._detection_sensitivity = ds
         else:
             ds = self._detection_sensitivity
 
@@ -198,12 +195,13 @@ class GlioTrace:
                     dt=dt
                 )
 
+            # If no cells still not found
             if tracked_stack is None:
                 self._subtable.drop([row_i])
                 print(
                     f"Warning, dropped row {row_i}: exp {self._subtable.loc[row_i, "exp"]}, roi {self._subtable.loc[row_i, "roi"]}")
 
-                # Important if last track_stack happens to be None
+                # Important if last tracked_stack happens to be None
                 self._tracked = np.all(self._subtable["tracked"] == True)
                 continue
 
@@ -224,7 +222,7 @@ class GlioTrace:
             if "set" in self._subtable.columns:
                 tracked_stack["set"] = int(self._subtable.loc[row_i, "set"])
 
-            # Append the information to preexisting track
+            # Append the tracked_stack information to preexisting track_data
             if self._track_data is not None:
                 self._track_data = pd.concat([self._track_data, tracked_stack])
             else:
@@ -232,6 +230,8 @@ class GlioTrace:
 
             # Mark the stack as tracked
             self._subtable.loc[row_i, "tracked"] = True
+
+            # Update internal flag
             self._tracked = np.all(self._subtable["tracked"] == True)
 
             if save_point is not None:
@@ -247,12 +247,13 @@ class GlioTrace:
         if hmm_param is not None:
             self._hmm_param = validate_hmm_param(hmm_param)
 
-        self._data_feat_unfilt, self._data_feat, self.pi, self.glm_models, self._transition_matrix, self.gammas = hmm_pipeline(
+        self._data_feat_unfilt, self._data_feat, self._pi, self.glm_models, self._transition_matrix, self._gammas = hmm_pipeline(
             self._track_data,
             self._fcols,
             self._hmm_param,
         )
 
+        # Update internal flag
         self._hmm = True
 
     # ------------------------------------------------------------------
@@ -266,6 +267,31 @@ class GlioTrace:
     def transition_matrix(self):
         self._require_hmm()
         return self._transition_matrix.copy()
+
+    @property
+    def track_data(self):
+        self._require_tracked()
+        return self._track_data.copy()
+
+    @property
+    def data_feat(self):
+        self._require_hmm()
+        return self._data_feat.copy()
+
+    @property
+    def pi(self):
+        self._require_hmm()
+        return self._pi.copy()
+
+    @property
+    def gammas(self):
+        self._require_hmm()
+        return self._gammas.copy()
+
+    @property
+    def video_paths(self):
+        self._require_tracked()
+        return self._video_paths.copy()
 
     # ------------------------------------------------------------------
     # Summarize Results (videos, summary statistics)
@@ -335,12 +361,10 @@ class GlioTrace:
                 raise ValueError(
                     f"data has 'set' column, so you must specify set (patient_id={patient_id})")
 
-        # 3) Filter (Treatment)
+        # -------------------------
+        # 3) Filter (treatment, optional)
+        # -------------------------
         if treatment is not None:
-            if "is_treatment" not in df.columns:
-                raise ValueError(
-                    "is_treatment was provided, but data has no 'is_treatment' column")
-
             avail_flags = set(
                 df["is_treatment"].dropna().astype(bool).unique())
             want = bool(treatment)
@@ -370,7 +394,7 @@ class GlioTrace:
 
     def video_compare(self, exp, roi, output: Optional[PathLike] = None):
         """
-        Generate a comparison video (old labels vs Viterbi) for a given experiment + roi.
+        Generate a comparison video (CNN vs Viterbi) for a given experiment + roi.
 
         Requires:
         - tracked data (self._track_data)
@@ -398,7 +422,7 @@ class GlioTrace:
         )
 
         # Store saved path
-        self._generate_video_visualizations.append(
+        self._video_paths.append(
             result if result is not None else out_path
         )
         return result
@@ -427,7 +451,7 @@ class GlioTrace:
         )
 
         # Store saved path.
-        self._generate_video_visualizations.append(
+        self._video_paths.append(
             result if result is not None else out_path)
 
     # ------------------------------------------------------------------
@@ -437,31 +461,26 @@ class GlioTrace:
     def patients(self, treated: bool | None = None) -> list[str]:
         st = self._subtable
         if "patient_id" not in st.columns:
-            raise ValueError("stacktable has no 'patient_id' column")
+            raise ValueError("subtable has no 'patient_id' column")
 
         if treated is not None:
-            if "is_treatment" not in st.columns:
-                raise ValueError(
-                    "treated filter requested but stacktable has no 'is_treatment' column")
             st = st[st["is_treatment"] == bool(treated)]
 
         return sorted(st["patient_id"].dropna().astype(str).unique().tolist())
 
     def sets(self, patient: str, treated: bool | None = None) -> list[int]:
         st = self._subtable
+
         if "patient_id" not in st.columns:
-            raise ValueError("stacktable has no 'patient_id' column")
+            raise ValueError("subtable has no 'patient_id' column")
         if "set" not in st.columns:
-            raise ValueError("stacktable has no 'set' column")
+            raise ValueError("subtable has no 'set' column")
 
         st = st[st["patient_id"].astype(str) == str(patient)]
         if st.empty:
             raise ValueError(f"Unknown patient_id={patient}")
 
         if treated is not None:
-            if "is_treatment" not in st.columns:
-                raise ValueError(
-                    "treated filter requested but stacktable has no 'is_treatment' column")
             st = st[st["is_treatment"] == bool(treated)]
 
         return sorted(st["set"].dropna().astype(int).unique().tolist())
@@ -491,9 +510,6 @@ class GlioTrace:
 
         # treated filter (optional)
         if treated is not None:
-            if "is_treatment" not in st.columns:
-                raise ValueError(
-                    "treated filter requested but stacktable has no 'is_treatment' column")
             st = st[st["is_treatment"] == bool(treated)]
 
         return sorted(st["exp"].dropna().astype(int).unique().tolist())
@@ -573,20 +589,33 @@ class GlioTrace:
         print(f"HMM parameters          : {self._hmm_param}")
 
         # ----- controls / treatment -----
-        if hasattr(self, "control"):
-            print(f"Controls                : {self.control}")
+        if "perturbation" in st.columns:
+            control = st.loc[st["is_treatment"]
+                             == False, "perturbation"].unique()
 
-        if getattr(self, "treatment", None) is not None:
-            t_name, t_dose = self.treatment
-            if t_dose is None:
-                print(f"Treatment               : {t_name}")
+            if len(control) != 1:
+                print(f"Control                 : All")
             else:
-                print(f"Treatment               : {t_name} (dose={t_dose})")
+                print(f"Control                 : {control[0]}")
 
-        if "is_treatment" in st.columns:
-            n_treat = int((st["is_treatment"] == True).sum())
-            n_ctrl = int((st["is_treatment"] == False).sum())
-            print(f"Stacks (control/treat)  : {n_ctrl} / {n_treat}")
+        if (st["is_treatment"] == True).any():
+            t_name = st.loc[st["is_treatment"]
+                            == True, "perturbation"].unique()
+
+            t_dose = []
+            if "treatment_dose" in st.columns:
+                t_dose = st.loc[st["is_treatment"] == True,
+                                "treatment_dose"].dropna().unique()
+
+            if len(t_dose) == 0:
+                print(f"Treatment               : {t_name[0]}")
+            else:
+                print(
+                    f"Treatment               : {t_name[0]} (dose={t_dose[0]})")
+
+        n_treat = int((st["is_treatment"] == True).sum())
+        n_ctrl = int((st["is_treatment"] == False).sum())
+        print(f"Stacks (control/treat)  : {n_ctrl} / {n_treat}")
 
         print("================================\n")
 
@@ -617,13 +646,13 @@ class GlioTrace:
         except Exception:
             raise TypeError("roi must be int-like")
 
-        exp_list = sorted(set(self._track_data["exp"].astype(int).unique()))
+        exp_list = sorted(set(self._subtable["exp"].astype(int).unique()))
         if exp not in exp_list:
             raise ValueError(f"exp={exp} not found. Available exp: {exp_list}")
 
         roi_list = sorted(
             set(
-                self._track_data.loc[self._track_data["exp"].astype(
+                self._subtable.loc[self._subtable["exp"].astype(
                     int) == exp, "roi"]
                 .astype(int)
                 .unique()
@@ -719,69 +748,16 @@ class GlioTrace:
     def _compare_hmm_and_cnn_class(self, threshold=0.1):
 
         self._require_tracked()
-        if not getattr(self, "_hmm", False):
-            raise RuntimeError(
-                "Run fit_hmm() first so data_feat and gammas are available.")
+        self._require_hmm()
 
         softmax_cols = SOFTMAX_COLUMNS
-        K = len(softmax_cols)
 
         data_feat = self._data_feat.copy()
-        gammas_long = self.gammas.copy()
+        gammas_long = self._gammas.copy()
 
-        # ---- sanity checks ----
-        required_df_cols = {"exp", "roi", "cellID", "time", "state_label"}
-        missing = required_df_cols - set(data_feat.columns)
-        if missing:
-            raise ValueError(
-                f"data_feat is missing required columns: {sorted(missing)}")
-
-        required_g_cols = {"exp", "roi", "cellID", "t"}
-        missing_g = required_g_cols - set(gammas_long.columns)
-        if missing_g:
-            raise ValueError(
-                f"gammas_long is missing required columns: {sorted(missing_g)}")
-
-        missing_softmax_df = [
-            c for c in softmax_cols if c not in data_feat.columns]
-        if missing_softmax_df:
-            raise ValueError(
-                f"data_feat is missing softmax columns: {missing_softmax_df}")
-
-        missing_softmax_g = [
-            c for c in softmax_cols if c not in gammas_long.columns]
-        if missing_softmax_g:
-            raise ValueError(
-                f"gammas_long is missing softmax columns: {missing_softmax_g}")
-
-        # ---- IMPORTANT: build per-track time index 't' BEFORE filtering ----
-        data_feat = data_feat.sort_values(
-            ["exp", "roi", "cellID", "time"]).copy()
-        data_feat["t"] = data_feat.groupby(["exp", "roi", "cellID"]).cumcount()
-
-        # ---- convert state_label to softmax label names (NO permutation) ----
-        # Accepts:
-        #   - 1..K (your case)
-        #   - 0..K-1
-        #   - already a string label in softmax_cols
-        def _state_to_label(x):
-            if pd.isna(x):
-                return x
-            if isinstance(x, str):
-                if x in softmax_cols:
-                    return x
-                raise ValueError(
-                    f"state_label string {x!r} not in SOFTMAX_COLUMNS.")
-            xi = int(x)
-            if 1 <= xi <= K:          # 1-based
-                return softmax_cols[xi - 1]
-            if 0 <= xi < K:           # 0-based
-                return softmax_cols[xi]
-            raise ValueError(
-                f"state_label {xi} out of range; expected 1..{K} or 0..{K-1}.")
-
-        data_feat["state_label"] = data_feat["state_label"].map(
-            _state_to_label)
+        # ---- convert state_label to softmax label names ----
+        data_feat["state_label"] = data_feat["state_label"].apply(
+            lambda x: softmax_cols[int(x) - 1])
 
         # ---- build mask: max CNN softmax prob > threshold ----
         maxprob = data_feat[softmax_cols].max(axis=1)
@@ -792,8 +768,8 @@ class GlioTrace:
 
         # ---- merge selected data with gammas ----
         merged = data_sel.merge(
-            gammas_long[["exp", "roi", "cellID", "t"] + softmax_cols],
-            on=["exp", "roi", "cellID", "t"],
+            gammas_long[["exp", "roi", "cellID", "time"] + softmax_cols],
+            on=["exp", "roi", "cellID", "time"],
             how="inner",
             validate="one_to_one",
             suffixes=("_cnn", "_gamma"),
@@ -829,8 +805,8 @@ class GlioTrace:
 
         manifest = {
             "format": "gliotrace-run-v1",
-            "tracked": bool(getattr(self, "_tracked", False)),
-            "hmm": bool(getattr(self, "_hmm", False)),
+            "tracked": bool(self._tracked),
+            "hmm": bool(self._hmm),
         }
         (run_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
@@ -838,36 +814,27 @@ class GlioTrace:
             "detection_sensitivity": self._detection_sensitivity,
             "channel_roles": self._channel_roles,
             "fcols": self._fcols,
-            "hmm_param": self._hmm_param,
-            "control": self.control,
-            "treatment": getattr(self, "treatment", None),
+            "hmm_param": self._hmm_param
         }
         (run_dir / "config.json").write_text(json.dumps(cfg, indent=2))
 
         # --- tables (pickle handles object columns like segmented_stack) ---
         self._subtable.to_pickle(run_dir / "tables" / "subtable.pkl")
 
-        if getattr(self, "track_data", None) is not None:
+        if self._track_data is not None:
             self._track_data.to_pickle(run_dir / "tables" / "track_data.pkl")
 
-        if getattr(self, "_hmm", False):
-            if getattr(self, "data_feat", None) is not None:
-                self._data_feat.to_pickle(run_dir / "tables" / "data_feat.pkl")
-            if getattr(self, "gammas", None) is not None:
-                self.gammas.to_pickle(run_dir / "tables" / "gammas.pkl")
+        if self._hmm:
+
+            self._data_feat.to_pickle(run_dir / "tables" / "data_feat.pkl")
+            self._gammas.to_pickle(run_dir / "tables" / "gammas.pkl")
 
             np.savez_compressed(
                 run_dir / "arrays.npz",
-                pi=np.asarray(getattr(self, "pi", [])),
-                _transition_matrix=np.asarray(
-                    getattr(self, "_transition_matrix", [])),
+                pi=np.asarray(self._pi),
+                transition_matrix=np.asarray(self._transition_matrix),
             )
-
-            if joblib is None:
-                raise RuntimeError(
-                    "joblib is required to save glm_models (pip install joblib).")
-            joblib.dump(getattr(self, "glm_models", None),
-                        run_dir / "glm_models.joblib")
+            joblib.dump(self.glm_models, run_dir / "glm_models.joblib")
 
         return run_dir
 
@@ -888,13 +855,11 @@ class GlioTrace:
         self._channel_roles = cfg["channel_roles"]
         self._fcols = cfg["fcols"]
         self._hmm_param = cfg["hmm_param"]
-        self.control = cfg["control"]
-        self.treatment = cfg.get("treatment", None)
 
         # internal flags
         self._tracked = bool(manifest.get("tracked", False))
         self._hmm = bool(manifest.get("hmm", False))
-        self._generate_video_visualizations = []
+        self._video_paths = []
 
         # load tables (pickle)
         self._subtable = pd.read_pickle(run_dir / "tables" / "subtable.pkl")
@@ -910,21 +875,18 @@ class GlioTrace:
             gammas_path = run_dir / "tables" / "gammas.pkl"
             self._data_feat = pd.read_pickle(
                 data_feat_path) if data_feat_path.exists() else None
-            self.gammas = pd.read_pickle(
+            self._gammas = pd.read_pickle(
                 gammas_path) if gammas_path.exists() else None
 
             arrays_path = run_dir / "arrays.npz"
             if arrays_path.exists():
                 arrays = np.load(arrays_path, allow_pickle=False)
-                self.pi = arrays["pi"]
-                self._transition_matrix = arrays["_transition_matrix"]
+                self._pi = arrays["pi"]
+                self._transition_matrix = arrays["transition_matrix"]
             else:
-                self.pi = None
+                self._pi = None
                 self._transition_matrix = None
 
-            if joblib is None:
-                raise RuntimeError(
-                    "joblib is required to load glm_models (pip install joblib).")
             glm_path = run_dir / "glm_models.joblib"
             self.glm_models = joblib.load(
                 glm_path) if glm_path.exists() else None

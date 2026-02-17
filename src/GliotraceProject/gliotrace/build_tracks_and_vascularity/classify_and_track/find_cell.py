@@ -11,7 +11,7 @@ import numpy as np
 def extract_block_features_pair(im_a, im_b, coords, blocksize):
     """
     Python replacement of matlab function for extracting snapshots
-    Python-Authors: André
+    @ Author: André Lasses Armatowski
     """
     h, w = im_a.shape
     half = blocksize // 2
@@ -107,10 +107,7 @@ def macro_track2(
 
     Detected cells are annotated with white circles for inspection.
 
-    @OG-Authors: Madeleine Skeppås, Sven Nelander
-    @date: 10012025
-
-    @Python-Authors: André
+    @ Author: André Lasses Armatowski, Madeleine Skeppås, Sven Nelander
     """
 
     mystack_float = img_as_float(mystack)

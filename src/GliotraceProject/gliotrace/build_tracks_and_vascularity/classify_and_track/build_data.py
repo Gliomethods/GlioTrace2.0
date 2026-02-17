@@ -16,11 +16,13 @@ def build_track_dataframes(
     Behavior:
     - Tracks are SPLIT whenever data is missing (x, y, frame_index, or cell_index is NaN).
     - When valid data resumes, a NEW cellID is created.
-    - time is defined EXACTLY as before: time = startidx + t
+    - time is defined: time = startidx + t
 
     Returns
     -------
     tracks_with_props : pd.DataFrame
+
+    @ Author: André Lasses Armatowski
     """
 
     # --- Identify phenotype matrix positions ---
