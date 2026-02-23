@@ -1,17 +1,40 @@
-.DS_Store
-mouse1
-result
-stackable.json
-metadata.csv
-__pycache__
-stacks_exp_148
-debug_group
-gliotrace_videos
+# ---- Python bytecode / caches ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# ---- Virtual environments ----
 .venv/
 venv/
 env/
+ENV/
 .conda/
+.condarc
+pip-wheel-metadata/
+
+# ---- Packaging / build artifacts ----
 build/
 dist/
 *.egg-info/
-runs*
+.eggs/
+wheels/
+pip-wheel-metadata/
+*.whl
+MANIFEST
+
+# ---- Test
+tests/
+
+# ---- OS junk ----
+.DS_Store
+Thumbs.db
+
+
+# ---- Project-specific common outputs ----
+outputs/
+output/
+results/
+data/
+tmp/
+temp/
