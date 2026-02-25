@@ -11,7 +11,7 @@ gliotrace = [
 
 [project]
 name = "GlioTrace"
-version = "0.0.1"
+version = "1.0.0"
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "imageio>=2.37.2,<3",

@@ -23,13 +23,6 @@ PathLike = str | Path
 
 
 class GlioTrace:
-    """
-      1) building a stack table from stackfiles + metadata
-      2) tracking + vascularity computation
-      3) HMM/GLM pipeline
-      4) video generation
-    """
-
     def __init__(
         self,
         stackfile,
@@ -41,8 +34,52 @@ class GlioTrace:
         control: str = "all",
         patient_id: Optional[list[str]] = None,
         sets_by_patient: Optional[dict[str, list[str]]] = None,
-        treatment: list[str] = None
+        treatment: list[str] = None,
     ):
+        """
+        Initialize a GlioTrace analysis run.
+
+        This constructor validates inputs, builds an internal "stack table" describing all
+        stacks to be processed, initializes configuration for detection and GLM-HMM fitting,
+        and resets all run-state flags and outputs.
+
+        Parameters
+        ----------
+        stackfile
+            Stack file(s) to analyze.
+
+        metadata
+            Metadata used to annotate each stack (e.g., experimental IDs, delta t, patient_id, sets, perturbation).
+
+        detection_sensitivity
+            Detection sensitivity for the tracking pipeline (default ``0.2``).
+
+        channel_roles
+            Optional mapping from channel keys to semantic roles used by the pipeline,
+            e.g. ``{"green": "gbm", "red": "vasc"}``.
+
+        fcols
+            Optional list of feature column names used when building the GLM-HMM feature/design
+            matrix.
+
+        hmm_param
+            Optional dictionary of GLM-HMM hyperparameters/configuration
+
+        control
+            Control selection/grouping specifier (default ``"all"``).
+
+        patient_id
+            Optional list of patient identifiers used to annotate stacks and/or define grouping
+
+        sets_by_patient
+            Optional mapping ``{patient_id: [set_id, ...]}`` used to assign stacks to sets per
+            patient. 
+
+        treatment
+            Optional list defining treatment label for stacks.
+
+        @ Author: André Lasses Armatowski
+        """
         v = validate_init(
             stackfile=stackfile,
             metadata=metadata,
@@ -91,13 +128,37 @@ class GlioTrace:
     # Main Computational Pipline
     # ------------------------------------------------------------------
 
-    def run_tracking(self,
-                     save_point=None,
-                     load_point=None,
-                     detection_sensitivity=None,
-                     detection_backup=None
-                     ):
-        """Run tracking algorithm."""
+    def run_tracking(
+        self,
+        save_point=None,
+        load_point=None,
+        detection_sensitivity=None,
+        detection_backup=None,
+    ):
+        """
+        Run the cell tracking + vascularity/classification pipeline over all untracked stacks.
+
+        Parameters
+        ----------
+        save_point
+            Optional identifier/path used for checkpointing.
+
+        load_point
+            Optional identifier/path used to reload a previously saved run.
+
+        detection_sensitivity
+            Optional detection sensitivity used by the tracking pipeline. If provided, it is
+            validated and stored in ``self._detection_sensitivity``.  If ``None``, the current 
+            ``self._detection_sensitivity`` is used.
+
+        detection_backup
+            Optional fallback detection sensitivity. If provided, it is validated.
+            If the main tracking attempt returns ``None``
+            for a stack, the pipeline is re-run once using ``detection_backup``.
+
+
+        @ Author: André Lasses Armatowski, Madeleine Skeppås
+        """
 
         # First check if the user wants to reload tracking for some point
         lp = load_point
@@ -244,7 +305,26 @@ class GlioTrace:
                 self.save_run(save_point)
 
     def fit_hmm(self, fcols: Optional[list[str]] = None, hmm_param: Optional[dict] = None):
-        """Run GLM-HMM pipeline."""
+        """
+        Fit a GLM-HMM (Generalized Linear Model Hidden Markov Model) to the tracked data.
+
+        This runs the full GLM-HMM pipeline on ``self._track_data`` and stores all fitted
+        artifacts on the instance (features, initial state distribution, per-state GLMs,
+        transition matrix, and posterior state probabilities).
+
+        Parameters
+        ----------
+        fcols
+            Optional list of feature column names to use when building the design matrix
+            for the GLM-HMM. If provided, the list is validated. If ``None``, the existing 
+            ``self._fcols`` is used.
+
+        hmm_param
+            Optional dictionary of GLM-HMM hyperparameters / configuration. If provided,
+            the dict is validated.
+
+        @ Author: André Lasses Armatowski
+        """
         self._require_tracked()
 
         if fcols is not None:
@@ -311,6 +391,33 @@ class GlioTrace:
         treatment=None,
         mode="mean",
     ):
+        """
+        Compute per-experiment summary statistics for a single feature over time and ROI.
+
+        The output is a dictionary keyed by experiment id (``exp``). Each value is a
+        time-indexed table with ROIs as columns and the aggregated statistic as values.
+
+        Parameters
+        ----------
+        fcol
+            Name of the feature column to summarize. Validated against the allowed feature
+            set via ``validate_fcols``. Only a single feature is accepted here.
+
+        patient_id
+            Optional patient identifier filter.
+
+        set_id
+            Optional set identifier filter.
+
+        treatment
+            Optional treatment filter.
+
+        mode
+            Aggregation mode determining the statistic computed.
+            "mean", "median", "sum", "min", "max", "std", "count"
+
+        @ Author: André Lasses Armatowski
+        """
         self._require_hmm()
         fcol = validate_fcols([fcol])[0]
         agg = _validate_mode(mode)
@@ -344,6 +451,8 @@ class GlioTrace:
         - None => auto folder under ./gliotrace_videos/exp_{exp}/roi_{roi}
         - directory => created if missing
         - file path => parent created if missing
+
+        @ Author: André Lasses Armatowski
         """
         self._require_tracked()
         self._require_hmm()
@@ -375,6 +484,8 @@ class GlioTrace:
           - None => auto folder under ./gliotrace_videos/exp_{exp}/roi_{roi}
           - directory => created if missing
           - file path => parent created if missing
+
+        @ Author: André Lasses Armatowski
         """
         self._require_tracked()
 
@@ -399,12 +510,47 @@ class GlioTrace:
     # ------------------------------------------------------------------
 
     def patients(self, treated: bool | None = None) -> list[str]:
+        """
+        List unique patient identifiers present in the current subtable.
+
+        Parameters
+        ----------
+        treated
+            Treatment filter applied via ``_apply_treated``:
+            - ``None``: include both control and treated stacks
+            - ``False``: include control stacks only
+            - ``True``: include treated stacks only
+
+        Returns
+        -------
+        list[str]
+            Sorted unique ``patient_id`` values (as strings), with missing values removed.
+
+        @ Author: André Lasses Armatowski
+        """
         st = self._subtable
         _require_cols(st, "patient_id", name="subtable")
         st = _apply_treated(st, treated)
         return sorted(st["patient_id"].dropna().astype(str).unique().tolist())
 
     def sets(self, patient: str, treated: bool | None = None) -> list[int]:
+        """
+        List unique set indices for a given patient.
+
+        Parameters
+        ----------
+        patient
+            Patient identifier used to filter the subtable 
+        treated
+            Treatment filter 
+
+        Returns
+        -------
+        list[int]
+            Sorted unique ``set`` values (as ints).
+
+        @ Author: André Lasses Armatowski
+        """
         st = self._subtable
         _require_cols(st, "patient_id", "set", name="subtable")
 
@@ -423,7 +569,16 @@ class GlioTrace:
 
         return sorted(st["exp"].dropna().astype(int).unique().tolist())
 
-    def print_configuration(self):
+    def print_configuration(self) -> None:
+        """
+        Print a human-readable summary of the current GlioTrace configuration and dataset scope.
+
+        Returns
+        -------
+        None
+
+        @ Author: André Lasses Armatowski
+        """
         print("\n=== Gliotrace configuration ===")
         st = self._subtable
         print(f"Number of stacks        : {len(st)}")
@@ -545,6 +700,10 @@ class GlioTrace:
             raise RuntimeError("fit_hmm must be called before this method")
 
     def _assert_same_rows_except_tracked(self, current: pd.DataFrame, loaded: pd.DataFrame):
+        """
+        Internal helper to compare loaded and initalized object
+        @ Author: André Lasses Armatowski
+        """
         # drop tracked if present
         c = current.drop(columns=["tracked"], errors="ignore").copy()
         l = loaded.drop(columns=["tracked"], errors="ignore").copy()
@@ -576,6 +735,8 @@ class GlioTrace:
         - If output is None, write to ./gliotrace_videos/exp_{exp}/roi_{roi}
         - If output is a directory, create it
         - If output is a file path, create its parent directory
+
+        @ Author: André Lasses Armatowski
         """
         if output is None:
             out = Path.cwd() / "gliotrace_videos" / f"exp_{exp}" / f"roi_{roi}"
@@ -591,6 +752,10 @@ class GlioTrace:
         return out
 
     def _compare_hmm_and_cnn_class(self, threshold=0.1):
+        """
+        Internal helper to compare cnn and gamma classifaction
+        @ Author: André Lasses Armatowski
+        """
 
         self._require_tracked()
         self._require_hmm()
@@ -644,6 +809,25 @@ class GlioTrace:
     # ------------------------------------------------------------------
 
     def save_run(self, run_dir: str | Path) -> Path:
+        """
+        Parameters
+        ----------
+        run_dir
+            Target directory for the run. Created if it does not exist.
+
+        Returns
+        -------
+        pathlib.Path
+            Path to the run directory.
+
+        Side Effects
+        ------------
+        Creates directories and overwrites any existing files with the same names in
+        ``run_dir``.
+
+        @ Author: André Lasses Armatowski
+        """
+
         run_dir = Path(run_dir)
         run_dir.mkdir(parents=True, exist_ok=True)
         (run_dir / "tables").mkdir(exist_ok=True)
@@ -685,6 +869,26 @@ class GlioTrace:
 
     @classmethod
     def load_run(cls, run_dir: str | Path) -> "GlioTrace":
+        """
+        Load a GlioTrace instance from a previously saved run directory.
+
+        Parameters
+        ----------
+        run_dir
+            Path to a run directory produced by :meth:`save_run`.
+
+        Returns
+        -------
+        GlioTrace
+            A GlioTrace instance populated with the stored configuration and results.
+
+        Implementation Detail
+        ---------------------
+        ``_video_paths`` is initialized to an empty list; video exports are not
+        restored by this loader.
+
+        @ Author: André Lasses Armatowski
+        """
         run_dir = Path(run_dir)
 
         manifest = json.loads((run_dir / "manifest.json").read_text())
