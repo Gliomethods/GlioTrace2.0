@@ -561,7 +561,7 @@ def select_stabilize(
 
             if sample.ndim != 3:
                 raise ValueError(
-                    f"Expected 3 dim e.g. (H, W, C) , got {im.shape} at {tif_paths[0]}"
+                    f"Expected 3 dim e.g. (H, W, C) , got {sample.shape} at {tif_paths[0]}"
                 )
 
             # Sort color channel to last
@@ -603,8 +603,6 @@ def select_stabilize(
                     f"{region_size} is to large for image with size {H} x {W}"
                 )
 
-            print(ch)
-
             if ch != 2 and ch != 3:
                 raise ValueError("Number of channels must be 2 or 3")
 
@@ -612,8 +610,6 @@ def select_stabilize(
             if ch == 2:
                 blue = np.zeros((H, W, 1), dtype=sample.dtype)
                 sample = np.concatenate([sample, blue], axis=-1)  # (H, W, 3)
-
-            print(sample.shape)
 
             rois = _select_rois_manual(sample, region_size)
 
