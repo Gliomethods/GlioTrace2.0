@@ -163,12 +163,12 @@
         <text x="426.848px" y="595.629px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:37.5px;">Stack list</text>
     </g>
     <g transform="matrix(1,0,0,1,-802.306,-115.108)">
-        <text x="1874.96px" y="177.719px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:29.167px;fill:rgb(106,106,106);">Region selection is</text>
-        <text x="1874.96px" y="211.052px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:29.167px;fill:rgb(106,106,106);">optional. Coordinates are</text>
-        <text x="1874.96px" y="244.386px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:29.167px;fill:rgb(106,106,106);">only necessary upon</text>
+        <text x="1874.96px" y="177.719px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:29.167px;fill:white;">Region selection is</text>
+        <text x="1874.96px" y="211.052px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:29.167px;fill:white;">optional. Coordinates are</text>
+        <text x="1874.96px" y="244.386px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:29.167px;fill:white;">only necessary upon</text>
         <g transform="matrix(29.1667,0,0,29.1667,2132.73,277.719)">
         </g>
-        <text x="1874.96px" y="277.719px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:29.167px;fill:rgb(106,106,106);">automatic selection.</text>
+        <text x="1874.96px" y="277.719px" style="font-family:'ArialMT', 'Arial', sans-serif;font-size:29.167px;fill:white;">automatic selection.</text>
     </g>
     <g transform="matrix(1,0,0,1,-761.387,322.04)">
         <g transform="matrix(37.5,0,0,37.5,2129.25,183.688)">
