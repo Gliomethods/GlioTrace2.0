@@ -26,7 +26,7 @@ Here, colors represent the different morphologies assigned by a convolutional ne
 Preprocessing and analysis of image data happens in a discrete set of steps using the functions provided in this repo.
 
 
-![Flowchart of framework](README_material/gt_framework_schem.svg)
+![Flowchart of framework](README_material/gt_framework.svg)
 
 # Installation
 
