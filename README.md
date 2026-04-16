@@ -16,11 +16,11 @@ GlioTrace captures invasion dynamics of individual cells and registers cell morp
 Here, colors represent the different morphologies assigned by a convolutional neural network.
 
 <p align="center">
-  <img src="README_material/148_roi_27_morphology.gif" width="45%" />
+  <img src="README_material/148_roi_27_morphology.gif" width="100%" />
 </p>
 
 <p align="center">
- <img src="README_material/3dplot.gif" width="54.3%" />
+ <img src="README_material/3dplot.gif" width="40%" />
 </p>
 
 
