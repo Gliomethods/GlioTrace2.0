@@ -15,11 +15,14 @@ Brain slices are kept alive and imaged for up to six days, enabling long-term ob
 GlioTrace captures invasion dynamics of individual cells and registers cell morphology at each time step.
 Here, colors represent the different morphologies assigned by a convolutional neural network.
 
-<p align="left">
-  <img src="README_material/set_35_exp_162_roi_7.gif" width="45%" />
-  <span style="display:inline-block; width:10%;"></span>
-  <img src="README_material/3dplot.gif" width="54.3%" />
+<p align="center">
+  <img src="README_material/exp_148_roi_27.gif" width="45%" />
 </p>
+
+<p align="center">
+ <img src="README_material/3dplot.gif" width="54.3%" />
+</p>
+
 
 ## GlioTrace framework overview
 
