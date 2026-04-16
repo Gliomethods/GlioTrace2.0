@@ -7,7 +7,7 @@ GlioTrace is a novel ex vivo imaging and AI-based analytical framework that enab
 
 ## Whole-specimen imaging of PDCX brain slices
 Brain slices are kept alive and imaged for up to six days, enabling long-term observations of cell invasion dynamics.
-<p align="left">
+<p align="center">
   <img src="README_material/BS6_3013_mouse2zoom_A02.gif" width="52%" />
 </p>
 
@@ -16,7 +16,7 @@ GlioTrace captures invasion dynamics of individual cells and registers cell morp
 Here, colors represent the different morphologies assigned by a convolutional neural network.
 
 <p align="center">
-  <img src="README_material/exp_148_roi_27.gif" width="45%" />
+  <img src="README_material/148_roi_27_morphology.gif" width="45%" />
 </p>
 
 <p align="center">
